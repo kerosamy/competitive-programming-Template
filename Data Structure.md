@@ -1451,3 +1451,103 @@ public:
 #undef ll
 };
 ```
+
+---
+# Poly Queries (update) :
+```cpp
+#include <bits/stdc++.h>
+using namespace std;
+
+#define int long long
+
+const int N = 200005;
+
+int n, q;
+int seg[4 * N];
+int lazyStart[4 * N];
+int lazyDiff[4 * N];
+
+void apply(int node, int l, int r, int start, int diff) {
+    int len = r - l + 1;
+    seg[node] += (2 * start + (len - 1) * diff) * len / 2;
+    lazyStart[node] += start;
+    lazyDiff[node] += diff;
+}
+
+void push(int node, int l, int r) {
+    if (lazyStart[node] == 0 && lazyDiff[node] == 0) return;
+
+    int mid = (l + r) / 2;
+    int leftLen = mid - l + 1;
+
+    apply(node * 2, l, mid,
+          lazyStart[node],
+          lazyDiff[node]);
+
+    apply(node * 2 + 1, mid + 1, r,
+          lazyStart[node] + leftLen * lazyDiff[node],
+          lazyDiff[node]);
+
+    lazyStart[node] = lazyDiff[node] = 0;
+}
+
+void build(int node, int l, int r) {
+    if (l == r) {
+        cin >> seg[node];
+        return;
+    }
+
+    int mid = (l + r) / 2;
+    build(node * 2, l, mid);
+    build(node * 2 + 1, mid + 1, r);
+
+    seg[node] = seg[node * 2] + seg[node * 2 + 1];
+}
+
+void update(int node, int l, int r, int ql, int qr) {
+    if (qr < l || r < ql) return;
+
+    if (ql <= l && r <= qr) {
+        apply(node, l, r, l - ql + 1, 1);
+        return;
+    }
+
+    push(node, l, r);
+
+    int mid = (l + r) / 2;
+    update(node * 2, l, mid, ql, qr);
+    update(node * 2 + 1, mid + 1, r, ql, qr);
+
+    seg[node] = seg[node * 2] + seg[node * 2 + 1];
+}
+
+int query(int node, int l, int r, int ql, int qr) {
+    if (qr < l || r < ql) return 0;
+
+    if (ql <= l && r <= qr) return seg[node];
+
+    push(node, l, r);
+
+    int mid = (l + r) / 2;
+    return query(node * 2, l, mid, ql, qr)
+         + query(node * 2 + 1, mid + 1, r, ql, qr);
+}
+
+signed main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    cin >> n >> q;
+    build(1, 1, n);
+
+    while (q--) {
+        int t, l, r;
+        cin >> t >> l >> r;
+
+        if (t == 1)
+            update(1, 1, n, l, r);
+        else
+            cout << query(1, 1, n, l, r) << '\n';
+    }
+}
+```

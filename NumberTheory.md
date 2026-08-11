@@ -477,3 +477,53 @@ void factor(ull n, vector<ull> &f) {
     factor(n / d, f);
 }
 ```
+---
+# CoPrimes pairs :
+```cpp
+const int N = 1e6+5;
+vector<int> mu(N), isPrime(N, 1);
+void mobius() {
+    for (int i = 1; i < N; i++) mu[i] = 1;
+    isPrime[0] = isPrime[1] = 0;
+ 
+    for (int i = 2; i < N; i++) {
+        if (isPrime[i]) {  
+            for (int j = i + i; j < N; j += i)
+                isPrime[j] = 0;
+ 
+            for (int j = i; j < N; j += i)
+                mu[j] *= -1;
+ 
+            for (long long j = 1LL * i * i; j < N; j += 1LL * i * i)
+                mu[j] = 0;
+        }
+    }
+}
+void solve(){
+    int n ; cin>>n;
+    int arr[n];
+    vi freq(N+5) , freqdiv(N+5);
+    lp(i,n)cin>>arr[i] , freq[arr[i]]++;
+    for (int i = 1; i < N; i++)
+    {
+        for(int j = i ; j < N ; j += i){
+            freqdiv[i]+=freq[j];
+        }
+    }    
+    int ans = 0 ; 
+    for (int i = 0; i < N; i++)
+    {
+        ans += (freqdiv[i]*(freqdiv[i] - 1)/2)*mu[i] ;
+    }
+    cout<<ans ln ; 
+    
+}
+int32_t main()
+{
+    mobius();
+    KERO
+    solve();
+    return 0;
+}
+
+```
