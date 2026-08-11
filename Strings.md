@@ -96,6 +96,66 @@ struct Hash
 ```
 ---
 
+# Hashing Templete Better :
+```cpp
+
+const int N = 1e6 + 5;
+const int MODS[] = {1000000000 + 7, 1000000000 + 9, 1000000000 + 21, 1000000000 + 33, 1000000000 + 87};
+mt19937_64 rng(chrono::system_clock::now().time_since_epoch().count());
+int MOD = MODS[uniform_int_distribution<int>(0, 4)(rng)];
+int BASE = uniform_int_distribution<int>(256, MOD - 2)(rng);
+int pw[N];
+void build() {
+    pw[0] = 1;
+    for (int i = 1; i < N; i++)
+        pw[i] = 1LL * pw[i - 1] * BASE % MOD;
+}
+struct PrefixHash {
+    vector<int> pref;
+
+    void init(const string &s) {
+        int n = s.size();
+        pref.assign(n + 1, 0);
+        for (int i = 0; i < n; i++)
+            pref[i + 1] = (1LL * pref[i] * BASE + s[i]) % MOD;
+    }
+
+    int get(int l, int r) {
+        int res = pref[r + 1] - 1LL * pref[l] * pw[r - l + 1] % MOD;
+        if (res < 0) res += MOD;
+        return res;
+    }
+};
+
+struct SuffixHash {
+    vector<int> suff;
+
+    void init(const string &s) {
+        int n = s.size();
+        suff.assign(n + 1, 0);
+        for (int i = n - 1; i >= 0; i--)
+            suff[i] = (1LL * suff[i + 1] * BASE + s[i]) % MOD;
+    }
+
+    int get(int l, int r) {
+        int res = suff[l] - 1LL * suff[r + 1] * pw[r - l + 1] % MOD;
+        if (res < 0) res += MOD;
+        return res;
+    }
+};
+```
+---
+
+# XOR Hashing : 
+```cpp
+mt19937_64 rng(chrono::system_clock::now().time_since_epoch().count());
+
+int rnd(int a, int b) {
+    if (a > b) return 0;
+    return a + rng() % (b - a + 1);
+}
+```
+
 
 # manacher Longest plaindromic substring in O(n) time complexity
 ```cpp

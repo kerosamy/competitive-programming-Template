@@ -116,6 +116,7 @@ void sieve() {
         }
     }
 }
+
 vector<int> getFactorization(int x) {
     vector<int> factors;
     while (x != 1) {
@@ -123,6 +124,26 @@ vector<int> getFactorization(int x) {
         x /= spf[x];
     }
     return factors;
+}
+
+
+const int N = 2e7 + 5;
+int spf[N];
+vector<int> primes;
+vector<bool> isPrime(N, true);
+
+void eulerSieve(int n) {
+    isPrime[0] = isPrime[1] = false;
+    for (int i = 2; i <= n; ++i) {
+        if (isPrime[i]) primes.push_back(i) , spf[i] = i;
+       
+        for (int p : primes) {
+            if (i * p > n) break;
+            spf[i*p] = p ; 
+            isPrime[i * p] = false;
+            if (i % p == 0) break;
+        }
+    }
 }
 
 ```
@@ -238,6 +259,22 @@ int nPr(int n, int r)
     return ans;
 }
 ```
+---
+
+# nCr with rec O(r):
+```cpp
+bool nCr(int n, int r, int limit) {
+    r = min(r, n - r);
+    __int128 ans = 1;
+    for (int i = 1; i <= r; ++i) {
+        ans = ans * (n - i + 1) / i;
+        if(ans >= limit) return 1;
+    }
+    return ans >= limit;
+}
+```
+
+
 ---
 
 # Compute ϕ(n) (number of co prims):

@@ -41,7 +41,6 @@ void solve(){
   id = n ; 
   build(0,n-1,0);
 
-  
   while (q--)
   {
     int t ; cin>>t ; 
@@ -1195,4 +1194,47 @@ double ternary_search(double l, double r) {
     }
     return f(l);                    //return the maximum of f(x) in [l, r]
 }
+```
+
+---
+# parall Binary Search
+
+```cpp
+ int n , m , q; cin>>n>>m>>q;
+    vi l(q , 0) , r(q , m-1) , res(q , -1);
+    vector<pair<int,int>>edg , qi;
+    for(int i = 0 ; i < m ; i++){
+        int a , b ; cin>>a>>b;
+        edg.push_back({a,b});
+    }
+    for(int i = 0 ; i < q ; i++){
+        int a , b ; cin>>a>>b;
+        qi.push_back({a,b});
+    }
+    while(true)
+    {
+        bool f = false ; 
+        vector<vector<int>>mp(m+5);
+        for(int i = 0 ; i < q ; i++){
+            if(l[i] <= r[i]){
+                mp[(l[i]+r[i])/2].push_back(i);
+                f = true ;
+            }
+        }
+        if(!f)break;
+        Dsu d (n+5);
+        for (int i = 0; i < m; i++)
+        {
+            d.merge(edg[i].first , edg[i].second);
+                for(auto x : mp[i]){
+                    if(d.find(qi[x].first) == d.find(qi[x].second)){
+                        r[x] = i-1;
+                        res[x] = i+1;
+                    }else{
+                        l[x] = i+1;
+                    }
+                }
+        }
+    }
+    for(auto f : res)cout<<f ln ; 
 ```

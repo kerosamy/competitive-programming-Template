@@ -177,8 +177,8 @@ void updateFloyd(int u, int v, int w, vector<vector<int>>& dist, int n) {
 ---
 # LCA 
 ```cpp
-vector<int>dis(n); 
-vector<vector<int>>anc(20 , vector<int>(n)) ;
+vector<int>dis(n + 1); 
+vector<vector<int>>anc(20 , vector<int>(n + 1)) ;
 function<void(int,int)>dfs=[&](int u , int p ){
     anc[0][u] = p ; 
     for(auto f : adj[u]){
@@ -718,65 +718,74 @@ vector<pair<int,int>> path(int u , int v){
 
 # Dinic's Algorithm — O(V² × E)
 ```cpp
-struct Dinic {
-    struct Edge {
-        int to, rev;
-        long long cap;
-    };
+struct Edge
+{
+    int to , rev , cap ; 
+};
+struct Dinic
+{
+    vector<vector<Edge>>graph;
+    vector<int> level, iter;
 
     int n;
-    vector<vector<Edge>> graph;
-    vector<int> level, iter;
 
     Dinic(int n) : n(n), graph(n), level(n), iter(n) {}
 
-    void add_edge(int from, int to, long long cap) {
-        graph[from].push_back({to, (int)graph[to].size(), cap});
-        graph[to].push_back({from, (int)graph[from].size() - 1, 0}); // reverse edge cap = 0
+    void add_e(int u , int v , int cap){
+        graph[u].push_back({v , (int)graph[v].size() , cap});
+        graph[v].push_back({u , (int)graph[u].size()-1 , 0});
     }
 
-    bool bfs(int s, int t) {
-        fill(level.begin(), level.end(), -1);
-        queue<int> q;
-        level[s] = 0;
+    bool bfs(int s , int t){
+        fill(level.begin() , level.end() , -1);
+        queue<int>q; 
         q.push(s);
-        while (!q.empty()) {
-            int v = q.front(); q.pop();
-            for (auto& e : graph[v]) {
-                if (e.cap > 0 && level[e.to] < 0) {
-                    level[e.to] = level[v] + 1;
-                    q.push(e.to);
+        level[s] = 0;
+        while (!q.empty())
+        {
+            int u = q.front(); q.pop();
+            for(auto [to , rev , cap] : graph[u]){
+                if(level[to] == -1 && cap){
+                    level[to] = level[u] + 1 ;
+                    q.push(to);
                 }
             }
         }
-        return level[t] >= 0; // return true if t is reachable
+        return level[t] != -1 ; 
     }
 
-    long long dfs(int v, int t, long long f) {
-        if (v == t) return f;
-        for (int& i = iter[v]; i < graph[v].size(); i++) {
-            Edge& e = graph[v][i];
-            if (e.cap > 0 && level[v] < level[e.to]) {
-                long long d = dfs(e.to, t, min(f, e.cap));
-                if (d > 0) {
-                    e.cap -= d;
-                    graph[e.to][e.rev].cap += d;
-                    return d;
+    int dfs (int u , int t , int mn){
+        if(u == t)return mn ; 
+        while(iter[u] != graph[u].size()){
+
+            auto &[to , rev , cap] = graph[u][iter[u]];
+
+            if(cap > 0 && level[to] == level[u] +1 ){
+                int cur = dfs(to , t , min(mn , cap));
+                if(cur){
+                    cap -= cur ; 
+                    graph[to][rev].cap += cur ; 
+                    return cur ; 
                 }
             }
+            iter[u]++;
         }
-        return 0;
+        return 0 ; 
     }
 
-    long long max_flow(int s, int t) {
-        long long flow = 0;
-        while (bfs(s, t)) {
+    int max_flow(int s , int t){
+        int res = 0 ; 
+        while (bfs(s , t))
+        {
             fill(iter.begin(), iter.end(), 0);
-            long long d;
-            while ((d = dfs(s, t, LLONG_MAX)) > 0)
-                flow += d;
+            while (true)
+            {
+                int d = dfs(s, t, 1e18); 
+                res += d ; 
+                if(!d) break;
+            }
         }
-        return flow;
+        return res ; 
     }
 };
 
@@ -1052,6 +1061,109 @@ struct Dinic {
             val += /* find original cap */ 1; // if unit graph
         return val;
     }
+
+    // cut for Kőnig's theorem
+    vector<pair<int,int>> cut (int s , int t , int nn){
+        vp res; 
+        queue<int>q; q.push(s);
+        vi vis(n) ; vis[s] = 1;
+        while (!q.empty())
+        {
+            int u = q.front(); q.pop();
+            for(auto [to , rev , cap , org] : graph[u]){
+                if(!vis[to] && cap){
+                    vis[to] = 1 ; 
+                    q.push(to);
+                }
+            }
+        }
+        for(int i = 0; i <nn; i++)if(!vis[i])res.push_back({1, i+1});
+
+        for(int j = 0; j < nn; j++)if(vis[nn + j])res.push_back({2, j+1});
+        return res ;
+    }
+
+
+};
+```
+
+---
+
+# MCMF O(F⋅ElogV):
+```cpp
+const int INF = 1e9;
+
+struct Edge {
+    int to, rev, cap, cost;
+};
+
+struct MCMF {
+    int n;
+    vector<vector<Edge>> g;
+    vector<int> dist, par_v, par_e, pot;
+
+    MCMF(int n) : n(n), g(n), dist(n), par_v(n), par_e(n), pot(n) {}
+
+    void addEdge(int u, int v, int cap, int cost) {
+        Edge a = {v, (int)g[v].size(), cap, cost};
+        Edge b = {u, (int)g[u].size(), 0, -cost};
+        g[u].push_back(a);
+        g[v].push_back(b);
+    }
+
+    pair<int,int> minCostMaxFlow(int s, int t, int need = INF) {
+        int flow = 0, cost = 0;
+
+        while (flow < need) {
+            fill(dist.begin(), dist.end(), INF);
+
+            priority_queue<pair<int,int> , vector<pair<int,int>> , greater<>> pq;
+
+            dist[s] = 0;
+            pq.push({0, s});
+
+            while (!pq.empty()) {
+                auto [d, u] = pq.top();
+                pq.pop();
+
+                if (d != dist[u]) continue;
+
+                for (int i = 0; i < g[u].size(); i++) {
+                    Edge &e = g[u][i];
+                    if (!e.cap) continue;
+
+                    int nd = d + e.cost + pot[u] - pot[e.to];
+                    if (nd < dist[e.to]) {
+                        dist[e.to] = nd;
+                        par_v[e.to] = u;
+                        par_e[e.to] = i;
+                        pq.push({nd, e.to});
+                    }
+                }
+            }
+
+            if (dist[t] == INF) break;
+
+            for (int i = 0; i < n; i++)
+                if (dist[i] < INF)
+                    pot[i] += dist[i];
+
+            int f = need - flow;
+            for (int v = t; v != s; v = par_v[v])
+                f = min(f, g[par_v[v]][par_e[v]].cap);
+
+            flow += f;
+            cost += f * pot[t];
+
+            for (int v = t; v != s; v = par_v[v]) {
+                Edge &e = g[par_v[v]][par_e[v]];
+                e.cap -= f;
+                g[v][e.rev].cap += f;
+            }
+        }
+
+        return {flow, cost};
+    }
 };
 ```
 ---
@@ -1263,7 +1375,8 @@ struct TwoSAT {
         return {true, ans};
     }
 };
-int addAtMostOne(vector<int> vars, TwoSAT &tw, int nextVar) {
+
+int addAtMostOne(vector<pair<int,int>> vars, TwoSAT &tw, int nextVar) {
 
     int k = vars.size();
     if (k <= 1) return nextVar;
@@ -1272,19 +1385,225 @@ int addAtMostOne(vector<int> vars, TwoSAT &tw, int nextVar) {
 
     for (int i = 0; i < k - 1; i++)s[i] = nextVar++;
     // x1 -> s1
-    tw.addOr(vars[0], false, s[0], true);
+    tw.addOr(vars[0].first, !vars[0].second, s[0], true);
 
     for (int i = 1; i < k - 1; i++) {
 
         // xi -> si
-        tw.addOr(vars[i], false, s[i], true);
+        tw.addOr(vars[i].first, !vars[i].second, s[i], true);
         // s(i-1) -> si
         tw.addOr(s[i - 1], false, s[i], true);
         // xi -> !s(i-1)
-        tw.addOr(vars[i], false, s[i - 1], false);
+        tw.addOr(vars[i].first, !vars[i].second, s[i - 1], false);
     }
     // xn -> !s_last
-    tw.addOr(vars[k - 1], false, s[k - 2], false);
+    tw.addOr(vars[k - 1].first, !vars[k - 1].second, s[k - 2], false);
     return nextVar;
+}
+```
+
+---
+# Centroid:
+```cpp
+struct centroid
+{
+    int n  , ans = 0 , k;
+    vector<vector<int>>adj;
+    vector<int> par , dead , siz , dis , cnt;
+    
+    centroid(int _n , vector<vector<int>> & _adj , int _k)
+    :n(_n), k(_k) ,adj(_adj), par(n+1), siz(n+1), dead(n+1) , dis(n+1) , cnt(n+1){}
+
+    void calcSize(int u, int p) {
+        siz[u] = 1;
+        for (int v : adj[u]) {
+            if (v == p || dead[v]) continue;
+            calcSize(v, u);
+            siz[u] += siz[v];
+        }
+    }
+    
+    int findC(int u, int p, int tot) {
+        for (int v : adj[u]) {
+            if (v == p || dead[v]) continue;
+            if (siz[v] > tot / 2)return findC(v, u, tot);
+        }
+        return u;
+    }
+    
+    void calcDis(int u, int p , int d , vi&cur) {
+        if(d > k) return ; 
+        cur.push_back(d);
+        for (int v : adj[u]) {
+            if (v == p || dead[v]) continue;
+            calcDis(v, u , d+1 , cur);
+        }
+    }
+
+    void calc(int u){
+        int mx = 0 ; 
+        cnt[0] = 1 ; 
+        for(auto v : adj[u]){
+
+            if(dead[v]) continue;
+
+            vi curDis;
+            calcDis(v , u , 1 , curDis);
+
+            for(auto d : curDis){
+                ans += cnt[k-d];
+            }
+            for(auto d : curDis){
+               cnt[d]++; mx = max(d,mx);
+            }
+        }
+
+        for(int i = 0 ; i <= mx ; i++){
+            cnt[i] = 0 ; 
+        }
+    }
+    void build(int u = 1, int p = -1, int d = 0) {
+        calcSize(u, -1);
+        int c = findC(u, -1, siz[u]);
+        calc(c);
+        par[c] = p; 
+        dis[c] = d; 
+        dead[c] = 1;
+
+        for(auto v : adj[c]){
+            if(!dead[v])build(v , c , d+1);
+        }
+    }
+};
+```
+
+---
+
+# Centroid Update and Query:
+```cpp
+struct centroid
+{
+    int n ;
+    vector<vector<int>>adj ;
+    vector<vector<pair<int,int>>>path;
+    vector<int> par , dead , siz , dis , cnt , best;
+    
+    centroid(int _n , vector<vector<int>> & _adj)
+    :n(_n) ,adj(_adj), best(n+1 , 1e18) , par(n+1), siz(n+1), dead(n+1) , dis(n+1) , cnt(n+1) , path(n+1){}
+
+    void calcSize(int u, int p) {
+        siz[u] = 1;
+        for (int v : adj[u]) {
+            if (v == p || dead[v]) continue;
+            calcSize(v, u);
+            siz[u] += siz[v];
+        }
+    }
+    
+    int findC(int u, int p, int tot) {
+        for (int v : adj[u]) {
+            if (v == p || dead[v]) continue;
+            if (siz[v] > tot / 2)return findC(v, u, tot);
+        }
+        return u;
+    }
+    
+    void calcDis(int u, int p , int d , int c) {
+      
+        path[u].push_back({d,c});
+        for (int v : adj[u]) {
+            if (v == p || dead[v]) continue;
+            calcDis(v, u , d+1 , c);
+        }
+    }
+
+    
+    void build(int u = 1, int p = -1, int d = 0) {
+        calcSize(u, -1);
+        int c = findC(u, -1, siz[u]);
+        par[c] = p; 
+        dis[c] = d; 
+        dead[c] = 1;
+        calcDis(c , -1 , 0 , c);
+
+        for(auto v : adj[c]){
+            if(!dead[v])build(v , c , d+1);
+        }
+    }
+    void update(int u){
+        for(auto [d , c] : path[u]){
+            best[c] = min(best[c] , d); 
+        }
+    }
+
+    int query(int u){
+        int ans = 1e18;
+        for(auto [d , c] : path[u]){
+            ans = min(ans , best[c] + d);
+        } 
+        return ans ; 
+    }
+};
+```
+
+---
+# Centroid Collect and Remove:
+```cpp
+const ll N = 2e5 + 10, M = (1LL << 20);
+vector<ll> adj[N];
+ll removed[N], frq[M], sz[N], a[N], res[N];
+ll dfsSZ(ll u, ll p) {
+    sz[u] = 1;
+    for (ll v: adj[u])
+        if (v != p and !removed[v])
+            sz[u] += dfsSZ(v, u);
+    return sz[u];
+}
+
+ll center(ll u, ll p, ll tot) {
+    for (ll v: adj[u])
+        if (v != p and !removed[v] and sz[v] * 2 > tot)
+            return center(v, u, tot);
+    return u;
+}
+
+ll dfs(ll u, ll p, ll cur) {
+    cur ^= a[u];
+    ll tmp = frq[cur];
+    for (ll bit = 0; bit < 20; bit++)
+        tmp += frq[cur ^ (1LL << bit)];
+    for (ll v: adj[u])
+        if (v != p and !removed[v])
+            tmp += dfs(v, u, cur);
+    res[u] += tmp;
+    return tmp;
+}
+
+void collect(ll u, ll p, ll add, ll cur) {
+    cur ^= a[u];
+    frq[cur] += add;
+    for (ll v: adj[u])
+        if (!removed[v] and v != p)
+            collect(v, u, add, cur);
+}
+
+void decompose(ll u) {
+    u = center(u, u, dfsSZ(u, u));
+    removed[u] = 1;
+    collect(u, -1, 1, 0);
+    ll tmp = frq[0] + 1;
+    for (ll bit = 0; bit < 20; bit++)
+        tmp += frq[(1LL << bit)];
+    for (ll v: adj[u]) {
+        if (removed[v])continue;
+        collect(v, -1, -1, a[u]);
+        tmp += dfs(v, u, 0);
+        collect(v, -1, 1, a[u]);
+    }
+    collect(u, -1, -1, 0);
+    res[u] += tmp / 2;
+    for (ll v: adj[u])
+        if (!removed[v])
+            decompose(v);
 }
 ```

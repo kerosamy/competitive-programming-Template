@@ -316,7 +316,6 @@ void solve(){
 ```
 ---
 # MO with RollBack 
-
 ```cpp
 void solve(){
     int n , m , k ; cin>>n>>m>>k ; 
@@ -512,13 +511,21 @@ st.erase(st.upper_bound(X));
 ---
 # Segment tree with hashing :
 ```cpp
-const int M = 2 , N = 1e6 + 5; 
-array<int,2> B , MODS , pw [N];
+const int N = 1e6 + 5;
+const int MODS[] = {1000000000 + 7, 1000000000 + 9, 1000000000 + 21, 1000000000 + 33, 1000000000 + 87};
+mt19937_64 rng(chrono::system_clock::now().time_since_epoch().count());
+int MOD = MODS[uniform_int_distribution<int>(0, 4)(rng)];
+int BASE = uniform_int_distribution<int>(256, MOD - 2)(rng);
+int pw[N];
+void build() {
+    pw[0] = 1;
+    for (int i = 1; i < N; i++)
+        pw[i] = 1LL * pw[i - 1] * BASE % MOD;
+}
+
 struct Node
 {
-  int sz ; 
-  array<int,2>pref ;
-  array<int,2>rev ;
+  int sz , pref , rev ; 
 };
 struct Segtree
 {
@@ -531,15 +538,11 @@ int sz; Node skip ;
 
 Node merge (Node a ,Node b){
   Node res ; 
+
   res.sz = a.sz + b.sz ; 
-  for (int i = 0; i < 2; i++)
-  {
-    res.pref[i] = (a.pref[i]*pw[b.sz][i] + b.pref[i])%MODS[i];
-  }
-  for (int i = 0; i < 2; i++)
-  {
-    res.rev[i] = (b.rev[i]*pw[a.sz][i] + a.rev[i])%MODS[i];
-  }
+  res.pref = (a.pref*pw[b.sz] + b.pref)%MOD;
+  res.rev = (b.rev*pw[a.sz] + a.rev)%MOD;
+
   return res ;
 }
 Node query (int l , int r , int node ,int lx , int rx){
@@ -551,11 +554,8 @@ Node query (int l , int r , int node ,int lx , int rx){
 }
 void update (int l , int r, int node , int indx , int val){
   if(l==r){
-    for (int i = 0; i < 2; i++)
-    {
-      seg[node].pref[i] =  (B[i]*val)%MODS[i];
-      seg[node].rev[i] =  (B[i]*val)%MODS[i];
-    }
+    seg[node].pref = val;
+    seg[node].rev  = val;
     seg[node].sz = 1;
     return ;
   }
@@ -571,11 +571,9 @@ void update (int l , int r, int node , int indx , int val){
 Segtree(int szz){
   int n = szz;
   sz = 1 ;
-  for (int i = 0; i < 2; i++)
-  {
-    skip.pref[i] = 0  ;
-    skip.rev[i] = 0 ;
-  }
+
+  skip.pref = 0  ;
+  skip.rev = 0 ;
   skip.sz = 0 ; 
   while (sz<n) sz*=2 ;
   seg  = vector<Node> (sz*2 , skip);
@@ -593,6 +591,117 @@ void updateCall(int val , int indx){
 #undef R
 #undef mid
 };
+```
+---
+# Lazy Segment Tree With Hashing 
+```cpp
+const int N = 1e6 + 5;
+const int MODS[] = {1000000000 + 7, 1000000000 + 9, 1000000000 + 21, 1000000000 + 33, 1000000000 + 87};
+mt19937_64 rng(chrono::system_clock::now().time_since_epoch().count());
+int MOD = MODS[uniform_int_distribution<int>(0, 4)(rng)];
+int BASE = uniform_int_distribution<int>(256, MOD - 2)(rng);
+int pw[N] , sumPw[N];
+void build() {
+    pw[0] = 1; sumPw[0] = 1;
+    for (int i = 1; i < N; i++){
+        sumPw[i] = (1LL * sumPw[i - 1] * BASE + 1) % MOD;
+        pw[i] = 1LL * pw[i - 1] * BASE % MOD;
+    }
+}
+
+struct Node
+{
+  int sz , pref , rev ; 
+};
+struct Segtree
+{
+ #define L 2*node+1
+ #define R 2*node+2
+ #define mid ((l+r)/2)
+
+vector<Node> seg ;
+vector<int> typ , lazy ; 
+int sz; Node skip ;
+
+Node merge (Node a ,Node b){
+    Node res ; 
+    res.sz = a.sz + b.sz ; 
+    res.pref = (1LL*a.pref*pw[b.sz] + b.pref)%MOD;
+    res.rev  = (1LL*b.rev *pw[a.sz] + a.rev)%MOD;
+    return res ;
+}
+void apply(int node, int val) {
+    seg[node].pref = 1LL * val * sumPw[seg[node].sz - 1] % MOD;
+    seg[node].rev = seg[node].pref;
+    lazy[node] = val;
+    typ[node] = 1;
+}
+void propagate(int l, int r, int node) {
+    if (typ[node] == -1) return;
+
+    if (l != r) {
+        apply(L, lazy[node]);
+        apply(R, lazy[node]);
+    }
+
+    lazy[node] = 0;
+    typ[node] = -1;
+}
+Node query (int l , int r , int node ,int lx , int rx){
+    propagate(l,r,node);
+    if(r<lx || rx<l)return skip ;
+    if(l>=lx&&r<=rx) return seg[node];
+    Node left = query (l , mid ,L , lx , rx);
+    Node right= query (mid+1,r,R , lx,rx);
+    return merge(left,right);
+}
+void update (int l , int r, int node , int lx , int rx, int val){
+    propagate(l,r,node);
+    if(r<lx || rx<l)return  ;
+    if(l>=lx&&r<=rx) {
+        apply(node, val);
+        return ;
+    }
+    update(l,mid,L,lx,rx,val);
+    update(mid+1,r,R,lx,rx,val);
+    seg[node] = merge (seg[L],seg[R]);
+}
+
+void buildTree(int l,int r,int node){
+    seg[node].sz = r-l+1;
+    if(l==r) return;
+    buildTree(l,mid,L);
+    buildTree(mid+1,r,R);
+}
+
+
+Segtree(int szz){
+  int n = szz;
+  sz = 1 ;
+  skip.pref = 0  ;
+  skip.rev = 0 ;
+  skip.sz = 0 ; 
+  while (sz<n) sz*=2 ;
+  seg  = vector<Node> (sz*2 , skip);
+  lazy = vector<int>(sz*2 , 0) ;
+  typ = vector<int>(sz*2 , -1) ;
+}
+
+bool queryCall(int l , int r){
+  Node res = query(0,sz-1,0,l,r);
+  return res.pref == res.rev ;
+}
+void updateCall(int l, int r, int val){
+    update(0, sz-1, 0, l, r, val);
+}
+
+#undef L
+#undef R
+#undef mid
+};
+
+// Segtree t (s.size());
+// t.buildTree(0 , t.sz-1 , 0);
 ```
 ---
 # Segment Tree for Max Freq in Range 
