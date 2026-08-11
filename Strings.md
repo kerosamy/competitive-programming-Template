@@ -208,70 +208,10 @@ int rnd(int a, int b) {
 ```
 ---
 
-# KMP : 
-```cpp
-vector<int>kmp(string &s){
-    int n = s.size();
-    vector<int>f(n);
-    for (int i = 1; i < n; i++)
-    {
-        int k = f[i-1];
-        while (k && s[i] != s[k]) 
-            k = f[k-1];
 
-        f[i] = k + (s[i] == s[k]);
-    }
-    return f; 
-}
-```
 
 ---
 
-# KMP
-```cpp
-string s, p;
-cin >> s >> p;
-
-int n = s.length();
-int m = p.length();
-
-// Build prefix function
-vector<int> pi(m);
-for (int i = 1; i < m; i++) {
-    int j = pi[i - 1];
-    while (j > 0 && p[i] != p[j])
-        j = pi[j - 1];
-    if (p[i] == p[j])
-        j++;
-    pi[i] = j;
-}
-
-// Build nxt array: prefix automaton transitions
-vector<vector<int>> nxt(m + 1, vector<int>(26));
-for (int i = 0; i <= m; i++) {
-    for (int c = 0; c < 26; c++) {
-        if (i < m && p[i] == char('a' + c))
-            nxt[i][c] = i + 1;
-        else if (i > 0)
-            nxt[i][c] = nxt[pi[i - 1]][c];
-        else
-            nxt[i][c] = 0;
-    }
-}
-
-// KMP search to find all matches of p in s
-vll ans;
-for (int i = 0, k = 0; i < n; i++) {
-    while (k > 0 && p[k] != s[i])
-        k = pi[k - 1];
-    if (p[k] == s[i])
-        k++;
-    if (k == m) {
-        ans.push_back(i - m + 2); // 1-based position
-        k = pi[k - 1];
-    }
-}
-```
 ---
 # Z algorithm
 ```cpp
