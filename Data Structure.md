@@ -1350,3 +1350,104 @@ ll query(Node *node, int l, int r, int ql, int qr, ll carry = 0) {
     return query(node->l, l, mid, ql, qr, carry) + query(node->r, mid + 1, r, ql, qr, carry);
 }
 ```
+# segment Tree polynomial query:
+```CPP
+class Node {
+public:
+    long long sum;
+    long long wsum;
+    
+    Node() {
+        sum = 0;
+        wsum = 0;
+    }
+
+    Node(long long data) {
+        sum = data;
+        wsum = data; // For a single element, length is 1, so wsum = data * 1
+    }
+
+    Node(long long s, long long ws) {
+        sum = s;
+        wsum = ws;
+    }
+
+    static Node merge(Node left, Node right, long long left_len) {
+        long long s = left.sum + right.sum;
+        long long ws = left.wsum + right.wsum + (right.sum * left_len);
+        return Node(s, ws);
+    }
+};
+
+class Segtree {
+#define L 2*node+1
+#define R 2*node+2
+#define mid (l + (r-l)/2)
+#define ll long long
+public:
+    vector<Node> seg;
+    Node skip;
+    ll sz;
+
+    Segtree(vector<ll> &v){
+        sz = 1;
+        while (sz < v.size()) sz *= 2;
+        seg.assign(2*sz, skip);
+        build(v, 0, sz-1, 0);
+    }
+
+    void build(vector<ll> &v, ll l, ll r, ll node) {
+        if (l == r) {
+            if (l < v.size())
+                seg[node] = Node(v[l]);
+            return;
+        }
+
+        build(v, l, mid, L);
+        build(v, mid+1, r, R);
+        ll left_len = (mid - l + 1);
+        seg[node] = Node::merge(seg[L], seg[R], left_len);
+    }
+
+    void update(ll l, ll r, ll node, ll idx, ll val) {
+        if (l == r) {
+            seg[node] = Node(val);
+            return;
+        }
+        if (idx <= mid)
+            update(l, mid, L, idx, val);
+        else 
+            update(mid+1, r, R, idx, val);
+            
+        ll left_len = (mid - l + 1);
+        seg[node] = Node::merge(seg[L], seg[R], left_len);
+    }
+
+    void update(ll idx, ll val) {
+        update(0, sz-1, 0, idx, val);
+    }
+
+    Node query(ll l, ll r, ll node, ll lx, ll rx) {
+        if (r < lx || rx < l) return Node(0, 0); // Identity element for sum/wsum
+        if (l >= lx && r <= rx) return seg[node];
+        
+        ll mid_val = mid;
+        Node left = query(l, mid_val, L, lx, rx);
+        Node right = query(mid+1, r, R, lx, rx);
+        
+        // The effective length of the 'left' part participating in the query overlap
+        ll left_len = max(0LL, min(rx, mid_val) - max(l, lx) + 1);
+        return Node::merge(left, right, left_len);
+    }
+
+    ll query(ll l, ll r) {
+        // Returns the weighted sum query for range [l, r]
+        return query(0, sz-1, 0, l, r).wsum;
+    }
+
+#undef L
+#undef R
+#undef mid
+#undef ll
+};
+```

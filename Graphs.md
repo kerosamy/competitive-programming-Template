@@ -1607,3 +1607,140 @@ void decompose(ll u) {
             decompose(v);
 }
 ```
+
+# Hopcraft
+```cpp
+struct HopcroftKarp {
+    int n, m; // n: nodes in left set, m: nodes in right set
+    vector<vector<int>> adj;
+    vector<int> match_left, match_right, dist;
+    const int INF = 1e9;
+
+    HopcroftKarp(int n, int m) : n(n), m(m), adj(n), 
+                                 match_left(n, -1), match_right(m, -1), dist(n) {}
+
+    void add_edge(int u, int v) {
+        adj[u].push_back(v);
+    }
+
+    // BFS to find the shortest augmenting paths
+    bool bfs() {
+        queue<int> q;
+        for (int i = 0; i < n; i++) {
+            if (match_left[i] == -1) {
+                dist[i] = 0;
+                q.push(i);
+            } else {
+                dist[i] = INF;
+            }
+        }
+
+        bool found = false;
+        int min_dist = INF;
+
+        while (!q.empty()) {
+            int u = q.front();
+            q.pop();
+
+            if (dist[u] < min_dist) {
+                for (int v : adj[u]) {
+                    if (match_right[v] == -1) {
+                        min_dist = dist[u] + 1;
+                        found = true;
+                    } else if (dist[match_right[v]] == INF) {
+                        dist[match_right[v]] = dist[u] + 1;
+                        q.push(match_right[v]);
+                    }
+                }
+            }
+        }
+        return found;
+    }
+
+    // DFS to augment the matching based on BFS distance levels
+    bool dfs(int u) {
+        for (int v : adj[u]) {
+            if (match_right[v] == -1) {
+                match_left[u] = v;
+                match_right[v] = u;
+                return true;
+            } else if (dist[match_right[v]] == dist[u] + 1) {
+                if (dfs(match_right[v])) {
+                    match_left[u] = v;
+                    match_right[v] = u;
+                    return true;
+                }
+            }
+        }
+        dist[u] = INF; // Avoid re-scanning nodes that don't lead to a path
+        return false;
+    }
+
+    int max_matching() {
+        int matching = 0;
+        while (bfs()) {
+            for (int i = 0; i < n; i++) {
+                if (match_left[i] == -1 && dfs(i)) {
+                    matching++;
+                }
+            }
+        }
+        return matching;
+    }
+    
+    vector<pair<int, int>> get_matching_pairs() {
+        vector<pair<int, int>> pairs;
+        for (int u = 0; u < n; u++) {
+            if (match_left[u] != -1) {
+                pairs.push_back({u, match_left[u]});
+            }
+        }
+        return pairs;
+    }
+};
+
+vvll graph;
+vll color, leftId, rightId;
+int L = 0, R = 0;
+
+void dfs(int u, int p, int c) {
+    color[u] = c;
+
+    if (c == 0) leftId[u] = L++;
+    else rightId[u] = R++;
+
+    for (int v : graph[u]) {
+        if (v == p) continue;
+        dfs(v, u, c ^ 1);
+    }
+}
+
+void solve() {
+    ll n; cin >> n;
+    graph.assign(n+1, vll(0));
+    color.assign(n + 1, -1);
+    leftId.assign(n + 1, -1);
+    rightId.assign(n + 1, -1);
+    L = R = 0;
+
+    for (ll i = 0; i < n-1; i++) {
+        ll u, v;
+        cin >> u >> v;
+        graph[u].push_back(v);
+        graph[v].push_back(u);
+    }
+
+    color[1] = 1;
+    dfs(1, -1, 0);
+    auto ans = HopcroftKarp(L, R);
+    for (int u = 1; u <= n; u++) {
+        if (color[u] == 0) {
+            for (int v : graph[u]) {
+                ans.add_edge(leftId[u], rightId[v]);
+            }
+        }
+    }
+
+    cout << ans.max_matching() ln
+}
+```
